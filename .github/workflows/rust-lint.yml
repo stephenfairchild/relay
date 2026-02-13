@@ -1,0 +1,26 @@
+name: Rust Lint
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize] # Triggers on PR activity
+permissions:
+  contents: read # Permission to checkout the code
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+          override: true
+      
+      - name: Run cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings # Fails the PR if warnings exist
+      
+      - name: Run cargo fmt
+        run: cargo fmt --all --check # Fails the PR if code is not formatted correctly
