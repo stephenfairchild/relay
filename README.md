@@ -1,2 +1,48 @@
 # relay
-A fast and secure http cache
+A fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's
+how I want this program to work so I'm going to build it. That's what we need for HTTP Cache. 
+
+## Features
+ - stale-while-revalidate 
+ - stale-while-error (serve stale on backend failure)
+ - conditional requests (If-None-Match, If-Modified-Since)
+ - Ignore irrelevant query params for cache key. Normalize the cache key
+ - Invalidation: TTL, purge by patterns and tags, cache warming on startup 
+ - Storage: in memory, redis, disk
+
+## Todo
+
+- Write the main layer. Start a POC
+- Expose a dashboard with observability
+- Expose a prometheus endpoint by default at /metrics
+- Run benchmarks compared against Varnish
+- Write and maintain docs
+
+## Mission And Fundamental Guide
+
+- async rust and memory safe as a feature
+- embedded lua for request handling
+- We use configuration over code. Make it easy for users to adopt with easy config. 
+- Have easy deployable binaries that are easy to install and run. One CLI, one .toml. 
+- Drop in Varnish Replacement. 
+
+
+## Example Config
+
+```toml
+# relay.toml
+[upstream]
+url = "http://localhost:8000"
+
+[cache]
+default_ttl = "5m"
+stale_while_revalidate = "1h"
+stale_if_error = "24h"
+
+[cache.rules]
+"/api/*" = { ttl = "30s", stale = "5m" }
+"/static/*" = { ttl = "1d" }
+
+[storage]
+redis = "http://redis:9000"
+```
