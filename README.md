@@ -1,4 +1,5 @@
 # relay
+
 A fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's
 how I want this program to work so I'm going to build it. That's what we need for HTTP Cache. 
 
@@ -10,6 +11,10 @@ how I want this program to work so I'm going to build it. That's what we need fo
  - Invalidation: TTL, purge by patterns and tags, cache warming on startup 
  - Storage: in memory, redis, disk
 
+## Platforms
+ - intel processors 
+ - build for debian/bookworm platforms first
+
 ## Todo
 
 - Write the main layer. Start a POC
@@ -17,6 +22,7 @@ how I want this program to work so I'm going to build it. That's what we need fo
 - Expose a prometheus endpoint by default at /metrics
 - Run benchmarks compared against Varnish
 - Write and maintain docs
+- Build and support for ARM
 
 ## Mission And Fundamental Guide
 
