@@ -1,25 +1,25 @@
-name: Tests and release
-
 on:
   push:
     branches:
-      - "main"
-      - "poc"
+      - main
+      - poc
 
-env:
-  GITHUB_TOKEN: ${{ github.token }}
-  RUST_BACKTRACE: 1
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
 
+name: release-please
 jobs:
-  release:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+  release-please:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build & Publish
-        uses: houseabsolute/actions-rust-release@v0
+      - uses: googleapis/release-please-action@v4
         with:
-          executable-name: relay 
-          target: ${{ matrix.target }}
+          # this assumes that you have created a personal access token
+          # (PAT) and configured it as a GitHub action secret named
+          # `MY_RELEASE_PLEASE_TOKEN` (this secret name is not important).
+          token: ${{ secrets.PAT }}
+          # this is a built-in strategy in release-please, see "Action Inputs"
+          # for more options
+          release-type: simple
