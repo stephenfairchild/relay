@@ -1,0 +1,25 @@
+name: Tests and release
+
+on:
+  push:
+    branches:
+      - "main"
+      - "poc"
+
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+  RUST_BACKTRACE: 1
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & Publish
+        uses: houseabsolute/actions-rust-release@v0
+        with:
+          executable-name: relay 
+          target: ${{ matrix.target }}
