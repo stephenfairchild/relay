@@ -1,6 +1,6 @@
 # relay
 
-A fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's
+A open-source fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's
 how I want this program to work so I'm going to build it. That's what we need for HTTP Cache. 
 
 ## Features
@@ -22,7 +22,7 @@ how I want this program to work so I'm going to build it. That's what we need fo
 - Expose a dashboard with observability
 - Expose a prometheus endpoint by default at /metrics
 - Run benchmarks compared against Varnish
-- Write and maintain docs
+- Social: logo, docs, website, discord
 - Build and support for ARM
 
 ## Mission And Fundamental Guide
@@ -51,5 +51,6 @@ stale_if_error = "24h"
 "/static/*" = { ttl = "1d" }
 
 [storage]
+in_memory=false
 redis = "http://redis:9000"
 ```
