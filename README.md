@@ -4,6 +4,7 @@ A fast and secure http cache. You know how Caddy changed the game for reverse pr
 how I want this program to work so I'm going to build it. That's what we need for HTTP Cache. 
 
 ## Features
+ - http/1 support
  - stale-while-revalidate 
  - stale-while-error (serve stale on backend failure)
  - conditional requests (If-None-Match, If-Modified-Since)
