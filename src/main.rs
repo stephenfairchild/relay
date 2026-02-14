@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use http_body_util::BodyExt;
 use http_body_util::Empty;
@@ -8,30 +9,50 @@ use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response};
 use hyper_util::rt::TokioIo;
+use serde::Deserialize;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
+#[derive(Debug, Deserialize)]
+struct Config {
+    server: ServerConfig,
+    upstream: UpstreamConfig,
+}
+
+#[derive(Debug, Deserialize)]
+struct ServerConfig {
+    host: String,
+    port: u16,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpstreamConfig {
+    url: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let config = load_config("config.toml")?;
 
-    // We create a TcpListener and bind it to 127.0.0.1:3000
+    let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
+    let upstream_url = Arc::new(config.upstream.url.clone());
+
+    println!("Server listening on {}", addr);
+    println!("Upstream URL: {}", upstream_url);
+
     let listener = TcpListener::bind(addr).await?;
 
-    // We start a loop to continuously accept incoming connections
     loop {
         let (stream, _) = listener.accept().await?;
-
-        // Use an adapter to access something implementing `tokio::io` traits as if they implement
-        // `hyper::rt` IO traits.
         let io = TokioIo::new(stream);
+        let upstream_url = Arc::clone(&upstream_url);
 
-        // Spawn a tokio task to serve multiple connections concurrently
         tokio::task::spawn(async move {
-            // Finally, we bind the incoming connection to our `hello` service
             if let Err(err) = http1::Builder::new()
-                // `service_fn` converts our function in a `Service`
-                .serve_connection(io, service_fn(call_upstream))
+                .serve_connection(
+                    io,
+                    service_fn(move |req| call_upstream(req, Arc::clone(&upstream_url))),
+                )
                 .await
             {
                 eprintln!("Error serving connection: {:?}", err);
@@ -40,11 +61,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 }
 
+fn load_config(path: &str) -> Result<Config, Box<dyn std::error::Error + Send + Sync>> {
+    let config_str = std::fs::read_to_string(path)?;
+    let config: Config = toml::from_str(&config_str)?;
+    Ok(config)
+}
+
 async fn call_upstream(
     _: Request<hyper::body::Incoming>,
+    upstream_url: Arc<String>,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
-    // Parse our URL...
-    let url = "http://httpbin.org/ip".parse::<hyper::Uri>()?;
+    let url = upstream_url.parse::<hyper::Uri>()?;
 
     // Get the host and the port
     let host = url.host().expect("uri has no host").to_string();

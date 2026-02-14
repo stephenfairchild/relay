@@ -24,3 +24,6 @@ target
 # Added by cargo
 
 /target
+
+# Configuration file (use config.toml.example as template)
+config.toml
