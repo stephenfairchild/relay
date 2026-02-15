@@ -1,7 +1,6 @@
 # relay
 
-A open-source fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's
-how I want this program to work so I'm going to build it. That's what we need for HTTP Cache. 
+A open-source fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's this but for http caching.
 
 ## Features
  - http/1 support
