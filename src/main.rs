@@ -17,37 +17,34 @@ use tokio::net::TcpStream;
 use tokio::sync::RwLock;
 
 use lazy_static::lazy_static;
-use prometheus::{Encoder, Histogram, IntCounter, IntGauge, TextEncoder, register_histogram, register_int_counter, register_int_gauge};
+use prometheus::{
+    Encoder, Histogram, IntCounter, IntGauge, TextEncoder, register_histogram,
+    register_int_counter, register_int_gauge,
+};
 
 type Cache = Arc<RwLock<HashMap<String, Bytes>>>;
 
 // Metrics using lock-free atomic operations for minimal overhead
 lazy_static! {
-    static ref CACHE_HITS: IntCounter = register_int_counter!(
-        "relay_cache_hits_total",
-        "Total number of cache hits"
-    ).unwrap();
-
-    static ref CACHE_MISSES: IntCounter = register_int_counter!(
-        "relay_cache_misses_total",
-        "Total number of cache misses"
-    ).unwrap();
-
+    static ref CACHE_HITS: IntCounter =
+        register_int_counter!("relay_cache_hits_total", "Total number of cache hits").unwrap();
+    static ref CACHE_MISSES: IntCounter =
+        register_int_counter!("relay_cache_misses_total", "Total number of cache misses").unwrap();
     static ref REQUEST_DURATION: Histogram = register_histogram!(
         "relay_request_duration_seconds",
         "Request duration in seconds",
-        vec![0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500, 1.0, 2.5]
-    ).unwrap();
-
+        vec![
+            0.001, 0.005, 0.010, 0.025, 0.050, 0.100, 0.250, 0.500, 1.0, 2.5
+        ]
+    )
+    .unwrap();
     static ref UPSTREAM_ERRORS: IntCounter = register_int_counter!(
         "relay_upstream_errors_total",
         "Total number of upstream request errors"
-    ).unwrap();
-
-    static ref CACHE_SIZE: IntGauge = register_int_gauge!(
-        "relay_cache_entries",
-        "Current number of entries in cache"
-    ).unwrap();
+    )
+    .unwrap();
+    static ref CACHE_SIZE: IntGauge =
+        register_int_gauge!("relay_cache_entries", "Current number of entries in cache").unwrap();
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,7 +89,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     println!("Server listening on {}", addr);
     println!("Upstream URL: {}", upstream_url);
-    println!("Prometheus metrics: {}", if *prometheus_enabled { "enabled" } else { "disabled" });
+    println!(
+        "Prometheus metrics: {}",
+        if *prometheus_enabled {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    );
 
     let listener = TcpListener::bind(addr).await?;
 
@@ -150,7 +154,8 @@ async fn handle_request(
     call_upstream(req, upstream_url, cache, prometheus_enabled).await
 }
 
-async fn metrics_handler() -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
+async fn metrics_handler() -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>>
+{
     let encoder = TextEncoder::new();
     let metric_families = prometheus::gather();
     let mut buffer = Vec::new();
@@ -205,7 +210,8 @@ async fn call_upstream(
     let port = base_url.port_u16().unwrap_or(80);
 
     // Get the path and query from the incoming request
-    let path_and_query = incoming_uri.path_and_query()
+    let path_and_query = incoming_uri
+        .path_and_query()
         .map(|pq| pq.as_str())
         .unwrap_or("/");
 
@@ -215,7 +221,8 @@ async fn call_upstream(
         base_url.scheme_str().unwrap_or("http"),
         base_url.authority().expect("uri has no authority"),
         path_and_query
-    ).parse::<hyper::Uri>()?;
+    )
+    .parse::<hyper::Uri>()?;
 
     let address = format!("{}:{}", host, port);
 
