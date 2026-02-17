@@ -1,5 +1,7 @@
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::time::Duration;
+use globset::{Glob, GlobSet, GlobSetBuilder};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -30,6 +32,16 @@ pub struct PrometheusConfig {
     pub enabled: bool,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct CacheRule {
+    #[serde(default, deserialize_with = "deserialize_optional_duration")]
+    pub ttl: Option<Duration>,
+    #[serde(default, deserialize_with = "deserialize_optional_duration")]
+    pub stale: Option<Duration>,
+    #[serde(default)]
+    pub bypass: Option<bool>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CacheConfig {
     #[serde(default = "default_ttl", deserialize_with = "deserialize_duration")]
@@ -39,6 +51,10 @@ pub struct CacheConfig {
         deserialize_with = "deserialize_duration"
     )]
     pub stale_if_error: Duration,
+    #[serde(default)]
+    pub rules: Option<HashMap<String, CacheRule>>,
+    #[serde(skip)]
+    pub compiled_rules: Option<Vec<(GlobSet, CacheRule)>>,
 }
 
 impl Default for CacheConfig {
@@ -46,6 +62,8 @@ impl Default for CacheConfig {
         Self {
             default_ttl: default_ttl(),
             stale_if_error: default_stale_if_error(),
+            rules: None,
+            compiled_rules: None,
         }
     }
 }
@@ -91,6 +109,19 @@ where
     parse_duration(&s).map_err(serde::de::Error::custom)
 }
 
+fn deserialize_optional_duration<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+    match s {
+        Some(s) => parse_duration(&s)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
+}
+
 fn parse_duration(s: &str) -> Result<Duration, String> {
     let s = s.trim();
     if s.is_empty() {
@@ -121,8 +152,36 @@ fn parse_duration(s: &str) -> Result<Duration, String> {
     Ok(Duration::from_secs(value * multiplier))
 }
 
+impl CacheConfig {
+    pub fn compile_rules(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(rules) = &self.rules {
+            let mut compiled = Vec::new();
+            for (pattern, rule) in rules {
+                let mut builder = GlobSetBuilder::new();
+                builder.add(Glob::new(pattern)?);
+                let globset = builder.build()?;
+                compiled.push((globset, rule.clone()));
+            }
+            self.compiled_rules = Some(compiled);
+        }
+        Ok(())
+    }
+
+    pub fn find_rule(&self, path: &str) -> Option<&CacheRule> {
+        if let Some(compiled) = &self.compiled_rules {
+            for (globset, rule) in compiled {
+                if globset.is_match(path) {
+                    return Some(rule);
+                }
+            }
+        }
+        None
+    }
+}
+
 pub fn load_config(path: &str) -> Result<Config, Box<dyn std::error::Error + Send + Sync>> {
     let config_str = std::fs::read_to_string(path)?;
-    let config: Config = toml::from_str(&config_str)?;
+    let mut config: Config = toml::from_str(&config_str)?;
+    config.cache.compile_rules()?;
     Ok(config)
 }
