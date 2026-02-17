@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/stephenfairchild/relay/compare/v0.1.0...v0.2.0) (2026-02-17)
+
+
+### Features
+
+* add docs website ([#17](https://github.com/stephenfairchild/relay/issues/17)) ([164fac5](https://github.com/stephenfairchild/relay/commit/164fac5c67472c261a689f7a4c3f430050c491f6))
+
 ## 0.1.0 (2026-02-17)
 
 
