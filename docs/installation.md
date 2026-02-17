@@ -1,5 +1,21 @@
 # Installation
 
+## Docker (Recommended)
+
+The easiest way to get started with Relay is using Docker:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/stephenfairchild/relay:latest
+
+# Run with config
+docker run -p 8080:8080 \
+  -v $(pwd)/config.toml:/etc/relay/config.toml \
+  ghcr.io/stephenfairchild/relay:latest
+```
+
+For production deployments and advanced Docker setups, see the [Docker documentation](docker.md).
+
 ## Binary Installation
 
 Download the latest release from [GitHub Releases](https://github.com/stephenfairchild/relay/releases):
@@ -9,6 +25,12 @@ Download the latest release from [GitHub Releases](https://github.com/stephenfai
 curl -L https://github.com/stephenfairchild/relay/releases/latest/download/relay-$(uname -s)-$(uname -m) -o relay
 chmod +x relay
 sudo mv relay /usr/local/bin/
+```
+
+Verify installation:
+
+```bash
+relay --version
 ```
 
 ## Build from Source
@@ -32,19 +54,7 @@ cargo build --release
 sudo cp target/release/relay /usr/local/bin/
 ```
 
-## Docker
-
-```bash
-# Pull the image
-docker pull ghcr.io/stephenfairchild/relay:latest
-
-# Run with config
-docker run -v $(pwd)/config.toml:/etc/relay/config.toml \
-  -p 8080:8080 \
-  ghcr.io/stephenfairchild/relay:latest
-```
-
-## Verify Installation
+Verify installation:
 
 ```bash
 relay --version

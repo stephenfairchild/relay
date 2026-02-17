@@ -1,6 +1,6 @@
 # Relay
 
-Relay is an open-source HTTP cache that brings the simplicity and ease-of-use of Caddy to HTTP caching. It's designed to be a drop-in replacement for Varnish, but with a focus on simplicity and modern features.
+Relay is an open-source HTTP cache that brings simplicity to HTTP caching. You know how Caddy made reverse proxies so easy out of the box over nginx? This is what Relay does for HTTP caching. It makes it out of the box easy.
 
 ## What is Relay?
 
@@ -28,47 +28,64 @@ Relay sits between your users and your backend servers, storing (caching) respon
 - **Prometheus Metrics** - Built-in monitoring with detailed cache metrics
 - **Built with Rust** - Memory-safe and blazingly fast
 
-## Quick Start
+## Installation
 
-```bash
-# Run with default config
-relay
-
-# Run with custom config
-relay --config relay.toml
-```
-
-## Example Configuration
+Create a `config.toml`:
 
 ```toml
-# relay.toml
 [upstream]
-url = "http://localhost:8000"
+url = "http://host.docker.internal:8000"
 
 [cache]
 default_ttl = "5m"
 stale_while_revalidate = "1h"
 stale_if_error = "24h"
 
-[cache.rules]
-"/api/*" = { ttl = "30s", stale = "5m" }
-"/static/*" = { ttl = "1d" }
-
 [storage]
-in_memory = false
-redis = "http://redis:9000"
+in_memory = true
 ```
 
-## Why Relay?
+Run with Docker:
 
-- **Simple Configuration** - No complex VCL, just clean TOML
-- **Memory Safe** - Built with async Rust
-- **Easy Deployment** - Single binary, single config file
-- **Modern Features** - Designed for today's web applications
+```bash
+docker run -p 8080:8080 \
+  -v $(pwd)/config.toml:/etc/relay/config.toml \
+  ghcr.io/stephenfairchild/relay:latest
+```
+
+Test it:
+
+```bash
+curl http://localhost:8080/api/data
+```
 
 ## Get Started
 
-- [Installation](installation.md)
+- [Quick Start Guide](quick-start.md)
 - [Configuration](configuration.md)
 - [Docker Setup](docker.md)
+- [Monitoring](monitoring.md)
 - [Contributing](contributing.md)
+
+## Other Installation Methods
+
+### Binary Installation
+
+Download the latest release from [GitHub Releases](https://github.com/stephenfairchild/relay/releases):
+
+```bash
+curl -L https://github.com/stephenfairchild/relay/releases/latest/download/relay-$(uname -s)-$(uname -m) -o relay
+chmod +x relay
+sudo mv relay /usr/local/bin/
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/stephenfairchild/relay.git
+cd relay
+cargo build --release
+sudo cp target/release/relay /usr/local/bin/
+```
+
+See the [full installation guide](installation.md) for more details.
