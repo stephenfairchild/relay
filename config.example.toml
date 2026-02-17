@@ -1,0 +1,49 @@
+# Relay Example Configuration
+# Copy this file to config.toml and customize for your environment
+
+[server]
+host = "127.0.0.1"
+port = 4000
+
+[upstream]
+url = "http://localhost:3000"
+
+[prometheus]
+enabled = true
+
+[cache]
+# Default TTL for cached responses
+default_ttl = "5m"
+
+# How long to serve stale content if upstream is unavailable
+stale_if_error = "24h"
+
+# Cache rules allow you to customize caching behavior per path
+[cache.rules]
+# Cache API responses for 30 seconds
+"/api/*" = { ttl = "30s", stale = "5m" }
+
+# Cache static assets for 1 day
+"/static/*" = { ttl = "1d" }
+"/assets/*" = { ttl = "1d" }
+"/public/*" = { ttl = "1d" }
+
+# Never cache admin or auth paths
+"/admin/*" = { bypass = true }
+"/auth/*" = { bypass = true }
+"/login" = { bypass = true }
+
+# Short TTL for user-specific content
+"/user/*" = { ttl = "1m", stale = "5m" }
+
+# Storage backend configuration
+# Available backends: "memory" (default), "redis"
+[storage]
+backend = "memory"
+
+# Redis storage configuration (only required if backend = "redis")
+# Uncomment and configure if using Redis backend
+# [storage.redis]
+# url = "redis://localhost:6379"
+# pool_size = 20
+# timeout = "1s"
