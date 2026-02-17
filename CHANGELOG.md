@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0](https://github.com/stephenfairchild/relay/compare/v0.2.0...v0.3.0) (2026-02-17)
+
+
+### Features
+
+* adds cache rule support ([#27](https://github.com/stephenfairchild/relay/issues/27)) ([b274d46](https://github.com/stephenfairchild/relay/commit/b274d46f6c4cf2cfb7baada9e618699501919dfc))
+* implement stale_if_error  ([#21](https://github.com/stephenfairchild/relay/issues/21)) ([26be51e](https://github.com/stephenfairchild/relay/commit/26be51e0462d0c7889945db4dc2b0ab8943f702f))
+* support redis as a storage layer ([#23](https://github.com/stephenfairchild/relay/issues/23)) ([6bff2d9](https://github.com/stephenfairchild/relay/commit/6bff2d9527ccd065be540d8536ed5ec80c5e1cdd))
+
 ## [0.2.0](https://github.com/stephenfairchild/relay/compare/v0.1.0...v0.2.0) (2026-02-17)
 
 
