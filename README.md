@@ -1,7 +1,7 @@
 # relay
 
 A open-source fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's this but for http caching.
-
+https://github.com/stephenfairchild/relay/pull/5
 ## Features
  - http/1 support
  - stale-while-revalidate 

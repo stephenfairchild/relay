@@ -1,0 +1,24 @@
+# Git files
+.git
+.gitignore
+
+# Rust build artifacts
+target/
+Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# CI/CD
+.github/
+
+# Documentation
+README.md
+LICENSE
+
+# macOS
+.DS_Store
