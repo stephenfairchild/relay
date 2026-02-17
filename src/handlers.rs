@@ -63,9 +63,33 @@ pub async fn call_upstream(
     let start = Instant::now();
     let incoming_uri = req.uri().clone();
     let cache_key = generate_cache_key(&incoming_uri);
+    let path = incoming_uri.path();
+
+    // Check if this path has a cache rule
+    let rule = cache_config.find_rule(path);
+
+    // If bypass is enabled for this path, skip caching entirely
+    if let Some(rule) = rule {
+        if rule.bypass == Some(true) {
+            println!("Cache BYPASS: {cache_key}");
+            return forward_to_upstream(
+                req,
+                upstream_url,
+                incoming_uri,
+                prometheus_enabled,
+                start,
+            )
+            .await;
+        }
+    }
+
+    // Determine TTL to use (rule-specific or default)
+    let ttl = rule
+        .and_then(|r| r.ttl)
+        .unwrap_or(cache_config.default_ttl);
 
     if let Some(cached_response) = cache.get(&cache_key).await {
-        if !cached_response.is_stale(cache_config.default_ttl) {
+        if !cached_response.is_stale(ttl) {
             if *prometheus_enabled {
                 CACHE_HITS.inc();
                 REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
@@ -126,10 +150,13 @@ pub async fn call_upstream(
                 UPSTREAM_ERRORS.inc();
             }
 
+            // Determine stale duration to use (rule-specific or default)
+            let stale_if_error = rule
+                .and_then(|r| r.stale)
+                .unwrap_or(cache_config.stale_if_error);
+
             if let Some(cached_response) = cache.get(&cache_key).await {
-                if cached_response
-                    .is_servable_if_error(cache_config.default_ttl, cache_config.stale_if_error)
-                {
+                if cached_response.is_servable_if_error(ttl, stale_if_error) {
                     if *prometheus_enabled {
                         CACHE_STALE_SERVED.inc();
                         REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
@@ -173,5 +200,59 @@ pub async fn call_upstream(
 
     Ok(Response::builder()
         .header("X-Cache", "MISS")
+        .body(Full::new(body_bytes))?)
+}
+
+async fn forward_to_upstream(
+    _req: Request<hyper::body::Incoming>,
+    upstream_url: Arc<String>,
+    incoming_uri: hyper::Uri,
+    prometheus_enabled: Arc<bool>,
+    start: Instant,
+) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
+    let base_url = upstream_url.parse::<hyper::Uri>()?;
+
+    let host = base_url.host().expect("uri has no host").to_string();
+    let port = base_url.port_u16().unwrap_or(80);
+
+    let path_and_query = incoming_uri
+        .path_and_query()
+        .map(|pq| pq.as_str())
+        .unwrap_or("/");
+
+    let upstream_uri = format!(
+        "{}://{}{}",
+        base_url.scheme_str().unwrap_or("http"),
+        base_url.authority().expect("uri has no authority"),
+        path_and_query
+    )
+    .parse::<hyper::Uri>()?;
+
+    let address = format!("{host}:{port}");
+    let stream = TcpStream::connect(address).await?;
+    let io = TokioIo::new(stream);
+
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+
+    tokio::task::spawn(async move {
+        if let Err(err) = conn.await {
+            println!("Connection failed: {err:?}");
+        }
+    });
+
+    let upstream_req = Request::builder()
+        .uri(upstream_uri)
+        .header(hyper::header::HOST, host)
+        .body(Empty::<Bytes>::new())?;
+
+    let res = sender.send_request(upstream_req).await?;
+    let body_bytes = res.collect().await?.to_bytes();
+
+    if *prometheus_enabled {
+        REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+    }
+
+    Ok(Response::builder()
+        .header("X-Cache", "BYPASS")
         .body(Full::new(body_bytes))?)
 }

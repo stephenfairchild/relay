@@ -59,6 +59,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let stale_if_error = cache_config.stale_if_error;
     println!("Cache config: TTL={ttl:?}, stale-if-error={stale_if_error:?}");
 
+    if let Some(rules) = &cache_config.rules {
+        println!("Cache rules configured:");
+        for (pattern, rule) in rules {
+            if let Some(true) = rule.bypass {
+                println!("  {pattern} -> BYPASS");
+            } else {
+                println!("  {pattern} -> TTL={:?}, stale={:?}", rule.ttl, rule.stale);
+            }
+        }
+    }
+
     let listener = TcpListener::bind(addr).await?;
 
     loop {
