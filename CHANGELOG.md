@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/stephenfairchild/relay/compare/v0.3.2...v0.3.3) (2026-02-17)
+
+
+### Bug Fixes
+
+* remove nested checks and use stable rust ([#33](https://github.com/stephenfairchild/relay/issues/33)) ([4fe66ba](https://github.com/stephenfairchild/relay/commit/4fe66baab455e0e16447aa3478aa324d534ce57f))
+
 ## [0.3.2](https://github.com/stephenfairchild/relay/compare/v0.3.1...v0.3.2) (2026-02-17)
 
 
