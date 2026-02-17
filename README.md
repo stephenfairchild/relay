@@ -37,27 +37,6 @@ Full documentation is available at [https://relay-http.com](https://relay-http.c
  - Invalidation: TTL, purge by patterns and tags, cache warming on startup 
  - Storage: in memory, redis, disk
 
-## Platforms
- - intel processors 
- - build for debian/bookworm platforms first
-
-## Todo
-
-- Write the main layer. Start a POC
-- Expose a dashboard with observability
-- Expose a prometheus endpoint by default at /metrics
-- Run benchmarks compared against Varnish
-- Social: logo, docs, website, discord
-- Build and support for ARM
-
-## Mission And Fundamental Guide
-
-- async rust and memory safe as a feature
-- embedded lua for request handling
-- We use configuration over code. Make it easy for users to adopt with easy config. 
-- Have easy deployable binaries that are easy to install and run. One CLI, one .toml. 
-- Drop in Varnish Replacement. 
-
 
 ## Quick Start
 
