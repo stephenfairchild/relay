@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Home / Documentation Root -->
+  <url>
+    <loc>https://relay-http.com/</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Quick Start - High priority for new users -->
+  <url>
+    <loc>https://relay-http.com/#/quick-start</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Installation Guide -->
+  <url>
+    <loc>https://relay-http.com/#/installation</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Configuration -->
+  <url>
+    <loc>https://relay-http.com/#/configuration</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Docker Setup -->
+  <url>
+    <loc>https://relay-http.com/#/docker</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Storage Options -->
+  <url>
+    <loc>https://relay-http.com/#/storage</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Cache Rules -->
+  <url>
+    <loc>https://relay-http.com/#/cache-rules</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Cache Options - Stale While Revalidate -->
+  <url>
+    <loc>https://relay-http.com/#/cache-options/stale-while-revalidate</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Cache Options - Stale If Error -->
+  <url>
+    <loc>https://relay-http.com/#/cache-options/stale-if-error</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Cache Options - Default TTL -->
+  <url>
+    <loc>https://relay-http.com/#/cache-options/default-ttl</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Monitoring -->
+  <url>
+    <loc>https://relay-http.com/#/monitoring</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Performance -->
+  <url>
+    <loc>https://relay-http.com/#/performance</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Production -->
+  <url>
+    <loc>https://relay-http.com/#/production</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Architecture -->
+  <url>
+    <loc>https://relay-http.com/#/architecture</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Contributing -->
+  <url>
+    <loc>https://relay-http.com/#/contributing</loc>
+    <lastmod>2026-02-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>

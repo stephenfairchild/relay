@@ -2,31 +2,122 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Relay Documentation</title>
+  <title>Relay - Simple HTTP Cache Server | Varnish Alternative in Rust</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-  <meta name="description" content="A fast and secure HTTP cache - like Caddy, but for caching">
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="Relay - Simple HTTP Cache Server | Varnish Alternative in Rust">
+  <meta name="description" content="Open-source HTTP caching proxy that makes caching simple. Like Caddy for reverse proxies, Relay simplifies HTTP caching with stale-while-revalidate, Redis support, and easy configuration. Fast Varnish alternative built in Rust.">
+  <meta name="keywords" content="HTTP cache, caching proxy, Varnish alternative, reverse proxy cache, API cache, stale-while-revalidate, Redis cache, HTTP caching server, CDN alternative, Rust cache server, web cache, content delivery, performance optimization">
+  <meta name="author" content="Relay Contributors">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://relay-http.com/" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://relay-http.com/">
+  <meta property="og:title" content="Relay - Simple HTTP Cache Server | Varnish Alternative">
+  <meta property="og:description" content="Open-source HTTP caching proxy that makes caching simple. Fast, memory-safe, and easy to configure. Built in Rust with Redis, in-memory, and disk storage support.">
+  <meta property="og:site_name" content="Relay HTTP Cache">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://relay-http.com/">
+  <meta property="twitter:title" content="Relay - Simple HTTP Cache Server | Varnish Alternative">
+  <meta property="twitter:description" content="Open-source HTTP caching proxy that makes caching simple. Fast, memory-safe, and easy to configure. Built in Rust with Redis, in-memory, and disk storage support.">
+
+  <!-- Additional SEO -->
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="English">
+  <meta name="revisit-after" content="7 days">
+
   <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/dark.css">
+
+  <!-- Structured Data / JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Relay",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Linux, macOS",
+    "description": "Open-source HTTP caching proxy that brings simplicity to HTTP caching. Like Caddy for reverse proxies, Relay makes HTTP caching easy with stale-while-revalidate, Redis support, and simple configuration.",
+    "url": "https://relay-http.com",
+    "downloadUrl": "https://github.com/stephenfairchild/relay/releases",
+    "softwareVersion": "0.3.3",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Relay Contributors"
+    },
+    "programmingLanguage": "Rust",
+    "codeRepository": "https://github.com/stephenfairchild/relay",
+    "keywords": "HTTP cache, caching proxy, Varnish alternative, reverse proxy cache, API cache, Redis cache, Rust",
+    "featureList": [
+      "HTTP/1.1 support",
+      "Stale-while-revalidate",
+      "Stale-if-error",
+      "Conditional requests",
+      "Smart cache keys",
+      "Multiple storage backends (Redis, in-memory, disk)",
+      "Prometheus metrics",
+      "Pattern-based cache invalidation"
+    ]
+  }
+  </script>
 </head>
 <body>
   <div id="app"></div>
   <script>
     window.$docsify = {
-      name: 'Relay',
+      name: 'Relay HTTP Cache',
+      nameLink: '/',
       repo: 'stephenfairchild/relay',
       loadSidebar: true,
-      subMaxLevel: 2,
+      subMaxLevel: 3,
       auto2top: true,
+      maxLevel: 4,
+      // SEO-friendly route mode
+      routerMode: 'history',
+      // Better for crawlers
+      notFoundPage: true,
+      // Add site meta info dynamically
+      plugins: [
+        function(hook, vm) {
+          // Update page title for each route for better SEO
+          hook.doneEach(function() {
+            const title = vm.route.title || 'Relay HTTP Cache';
+            document.title = title + ' - Relay Documentation | Simple HTTP Caching Server';
+          });
+        }
+      ],
       search: {
         paths: 'auto',
-        placeholder: 'Search',
+        placeholder: 'Search documentation...',
         noData: 'No results found',
-        depth: 3
+        depth: 4,
+        // Better search indexing
+        pathNamespaces: ['/cache-options'],
+        // Hide header when searching
+        hideOtherSidebarContent: false
       },
       copyCode: {
         buttonText: 'Copy',
         errorText: 'Error',
         successText: 'Copied'
+      },
+      // Add edit on GitHub link
+      pagination: {
+        previousText: 'Previous',
+        nextText: 'Next',
+        crossChapter: true,
+        crossChapterText: true
       }
     }
   </script>

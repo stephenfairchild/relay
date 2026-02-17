@@ -1,6 +1,8 @@
-# Relay
+# Relay - Simple HTTP Cache Server
 
-Relay is an open-source HTTP cache that brings simplicity to HTTP caching. You know how Caddy made reverse proxies so easy out of the box over nginx? This is what Relay does for HTTP caching. It makes it out of the box easy.
+> A fast, modern HTTP caching proxy built in Rust. Like Caddy simplified reverse proxies, Relay simplifies HTTP caching.
+
+Relay is an open-source HTTP cache server that brings simplicity to HTTP caching. Think of it as **Caddy for HTTP caching** - easy to configure, powerful, and production-ready out of the box. If you need to cache HTTP responses, reduce backend load, or build a CDN-like layer for your API, Relay makes it simple.
 
 ## What is Relay?
 
@@ -16,17 +18,37 @@ Relay sits between your users and your backend servers, storing (caching) respon
 - **Better reliability** - If your backend goes down, Relay can still serve cached content
 - **Simple setup** - One binary, one config file, and you're running
 
-## Features
+## Why Choose Relay?
 
-- **HTTP/1 Support** - Full HTTP/1.1 protocol support
-- **Stale-While-Revalidate** - Serve stale content while fetching fresh data
-- **Stale-If-Error** - Keep your site up even when backends fail - automatically serve cached content during outages
-- **Conditional Requests** - Support for If-None-Match and If-Modified-Since
-- **Smart Cache Keys** - Ignore irrelevant query params and normalize cache keys
-- **Flexible Invalidation** - TTL-based, pattern-based purging, and cache warming
-- **Multiple Storage Backends** - In-memory, Redis, or disk storage
-- **Prometheus Metrics** - Built-in monitoring with detailed cache metrics
-- **Built with Rust** - Memory-safe and blazingly fast
+**Modern Varnish Alternative** - Relay is a drop-in replacement for Varnish with simpler configuration and better developer experience.
+
+**Production-Ready** - Powers real applications with features like stale-while-revalidate, automatic failover, and comprehensive monitoring.
+
+**Developer-Friendly** - One binary, one config file. No VCL, no complex syntax. Just straightforward TOML configuration.
+
+## Key Features
+
+### Caching & Performance
+- **HTTP/1.1 Support** - Full RFC 7234 HTTP caching specification compliance
+- **Stale-While-Revalidate** - Serve cached content while fetching fresh data in the background for zero-latency updates
+- **Stale-If-Error** - Automatic failover to cached content when backend servers are down or returning errors
+- **Conditional Requests** - Efficient validation with If-None-Match and If-Modified-Since headers
+- **Smart Cache Keys** - Ignore irrelevant query parameters and normalize cache keys for better hit rates
+
+### Storage & Scalability
+- **Multiple Storage Backends** - Choose between in-memory (fastest), Redis (distributed), or disk storage (persistent)
+- **Flexible Invalidation** - TTL-based expiration, pattern-based cache purging, tag-based invalidation, and startup cache warming
+- **Cache Rules** - Path-based caching policies with glob pattern matching
+
+### Operations & Monitoring
+- **Prometheus Metrics** - Built-in `/metrics` endpoint with detailed cache hit/miss ratios, latency, and throughput stats
+- **Production Ready** - Memory-safe Rust implementation with predictable performance
+- **Simple Deployment** - Docker images, static binaries, and systemd support included
+
+### Developer Experience
+- **Easy Configuration** - Human-readable TOML configuration, no complex DSL or scripting language required
+- **Fast Startup** - Sub-second startup time with optional cache warming
+- **Zero Dependencies** - Single static binary with no runtime dependencies
 
 ## Installation
 
