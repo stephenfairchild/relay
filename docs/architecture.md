@@ -4,6 +4,8 @@ Understanding Relay's internal architecture.
 
 ## High-Level Overview
 
+### Component Architecture
+
 ```
 ┌─────────────┐
 │   Client    │
@@ -39,6 +41,47 @@ Understanding Relay's internal architecture.
        ┌─────────────┐
        │   Backend   │
        └─────────────┘
+```
+
+### Request Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Relay
+    participant Cache
+    participant Metrics
+    participant Backend
+
+    Client->>Relay: HTTP Request
+
+    alt /metrics endpoint
+        Relay->>Metrics: Check if enabled
+        alt Prometheus enabled
+            Metrics-->>Relay: Metrics data
+            Relay-->>Client: 200 OK (Prometheus metrics)
+        else Prometheus disabled
+            Relay-->>Client: 404 Not Found
+        end
+    else Normal request
+        Relay->>Relay: Generate cache key
+        Relay->>Cache: Check cache
+
+        alt Cache HIT
+            Cache-->>Relay: Cached response
+            Relay->>Metrics: Increment cache_hits
+            Relay-->>Client: 200 OK + X-Cache: HIT
+        else Cache MISS
+            Relay->>Metrics: Increment cache_misses
+            Relay->>Backend: Forward request
+            Backend-->>Relay: Response
+            Relay->>Cache: Store response
+            Relay->>Metrics: Update cache_size
+            Relay-->>Client: 200 OK + X-Cache: MISS
+        end
+
+        Relay->>Metrics: Record request_duration
+    end
 ```
 
 ## Core Components
