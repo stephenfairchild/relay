@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.85-bookworm as builder
+FROM rust:1.85-bookworm AS builder
 
 WORKDIR /app
 
@@ -24,9 +24,6 @@ RUN apt-get update && \
 
 # Copy the binary from builder
 COPY --from=builder /app/target/release/relay /usr/local/bin/relay
-
-# Copy default config (can be overridden with volume mount)
-COPY config.toml /app/config.toml
 
 # Expose the default port from config
 EXPOSE 4000
