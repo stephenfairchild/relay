@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use async_trait::async_trait;
 use http_body_util::BodyExt;
 use http_body_util::Empty;
 use http_body_util::Full;
@@ -38,7 +39,95 @@ impl CachedResponse {
     }
 }
 
-type Cache = Arc<RwLock<HashMap<String, CachedResponse>>>;
+#[async_trait]
+trait Storage: Send + Sync {
+    async fn get(&self, key: &str) -> Option<CachedResponse>;
+    async fn set(&self, key: String, value: CachedResponse);
+    async fn size(&self) -> usize;
+}
+
+struct MemoryStorage {
+    cache: RwLock<HashMap<String, CachedResponse>>,
+}
+
+impl MemoryStorage {
+    fn new() -> Self {
+        Self {
+            cache: RwLock::new(HashMap::new()),
+        }
+    }
+}
+
+#[async_trait]
+impl Storage for MemoryStorage {
+    async fn get(&self, key: &str) -> Option<CachedResponse> {
+        self.cache.read().await.get(key).cloned()
+    }
+
+    async fn set(&self, key: String, value: CachedResponse) {
+        self.cache.write().await.insert(key, value);
+    }
+
+    async fn size(&self) -> usize {
+        self.cache.read().await.len()
+    }
+}
+
+struct RedisStorage {
+    client: redis::aio::ConnectionManager,
+}
+
+impl RedisStorage {
+    async fn new(url: &str) -> Result<Self, redis::RedisError> {
+        let client = redis::Client::open(url)?;
+        let connection_manager = redis::aio::ConnectionManager::new(client).await?;
+        Ok(Self {
+            client: connection_manager,
+        })
+    }
+}
+
+#[async_trait]
+impl Storage for RedisStorage {
+    async fn get(&self, key: &str) -> Option<CachedResponse> {
+        let mut conn = self.client.clone();
+
+        let result: Result<(Vec<u8>, u64), redis::RedisError> = redis::pipe()
+            .get(format!("{key}:body"))
+            .get(format!("{key}:cached_at"))
+            .query_async(&mut conn)
+            .await;
+
+        match result {
+            Ok((body, cached_at_nanos)) => {
+                let elapsed = Duration::from_nanos(cached_at_nanos);
+                let cached_at = Instant::now() - elapsed;
+                Some(CachedResponse {
+                    body: Bytes::from(body),
+                    cached_at,
+                })
+            }
+            Err(_) => None,
+        }
+    }
+
+    async fn set(&self, key: String, value: CachedResponse) {
+        let mut conn = self.client.clone();
+        let elapsed = value.cached_at.elapsed().as_nanos() as u64;
+
+        let _: Result<(), redis::RedisError> = redis::pipe()
+            .set(format!("{key}:body"), value.body.to_vec())
+            .set(format!("{key}:cached_at"), elapsed)
+            .query_async(&mut conn)
+            .await;
+    }
+
+    async fn size(&self) -> usize {
+        0
+    }
+}
+
+type Cache = Arc<dyn Storage>;
 
 // Metrics using lock-free atomic operations for minimal overhead
 lazy_static! {
@@ -76,6 +165,8 @@ struct Config {
     prometheus: PrometheusConfig,
     #[serde(default)]
     cache: CacheConfig,
+    #[serde(default)]
+    storage: StorageConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,6 +204,31 @@ impl Default for CacheConfig {
             stale_if_error: default_stale_if_error(),
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct StorageConfig {
+    #[serde(default = "default_backend")]
+    backend: String,
+    redis: Option<RedisConfig>,
+}
+
+impl Default for StorageConfig {
+    fn default() -> Self {
+        Self {
+            backend: default_backend(),
+            redis: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct RedisConfig {
+    url: String,
+}
+
+fn default_backend() -> String {
+    "memory".to_string()
 }
 
 fn default_ttl() -> Duration {
@@ -167,7 +283,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     let upstream_url = Arc::new(config.upstream.url.clone());
-    let cache: Cache = Arc::new(RwLock::new(HashMap::new()));
+
+    let cache: Cache = match config.storage.backend.as_str() {
+        "redis" => {
+            let redis_config = config
+                .storage
+                .redis
+                .as_ref()
+                .ok_or("Redis backend selected but no redis configuration provided")?;
+            println!("Initializing Redis storage backend: {}", redis_config.url);
+            Arc::new(RedisStorage::new(&redis_config.url).await?)
+        }
+        "memory" => {
+            println!("Initializing in-memory storage backend");
+            Arc::new(MemoryStorage::new())
+        }
+        backend => {
+            return Err(format!("Unknown storage backend: {backend}").into());
+        }
+    };
+
     let prometheus_enabled = Arc::new(config.prometheus.enabled);
     let cache_config = Arc::new(config.cache);
 
@@ -275,19 +410,16 @@ async fn call_upstream(
     let cache_key = generate_cache_key(&incoming_uri);
 
     // Check if the response is in cache
-    {
-        let cache_read = cache.read().await;
-        if let Some(cached_response) = cache_read.get(&cache_key) {
-            if !cached_response.is_stale(cache_config.default_ttl) {
-                if *prometheus_enabled {
-                    CACHE_HITS.inc();
-                    REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
-                }
-                println!("Cache HIT: {cache_key}");
-                return Ok(Response::builder()
-                    .header("X-Cache", "HIT")
-                    .body(Full::new(cached_response.body.clone()))?);
+    if let Some(cached_response) = cache.get(&cache_key).await {
+        if !cached_response.is_stale(cache_config.default_ttl) {
+            if *prometheus_enabled {
+                CACHE_HITS.inc();
+                REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
             }
+            println!("Cache HIT: {cache_key}");
+            return Ok(Response::builder()
+                .header("X-Cache", "HIT")
+                .body(Full::new(cached_response.body.clone()))?);
         }
     }
 
@@ -351,8 +483,7 @@ async fn call_upstream(
             }
 
             // Check if we have stale cache that can be served
-            let cache_read = cache.read().await;
-            if let Some(cached_response) = cache_read.get(&cache_key) {
+            if let Some(cached_response) = cache.get(&cache_key).await {
                 if cached_response
                     .is_servable_if_error(cache_config.default_ttl, cache_config.stale_if_error)
                 {
@@ -381,18 +512,18 @@ async fn call_upstream(
     let body_bytes = res.collect().await?.to_bytes();
 
     // Store the response in cache
-    {
-        let mut cache_write = cache.write().await;
-        cache_write.insert(
-            cache_key,
+    cache
+        .set(
+            cache_key.clone(),
             CachedResponse {
                 body: body_bytes.clone(),
                 cached_at: Instant::now(),
             },
-        );
-        if *prometheus_enabled {
-            CACHE_SIZE.set(cache_write.len() as i64);
-        }
+        )
+        .await;
+
+    if *prometheus_enabled {
+        CACHE_SIZE.set(cache.size().await as i64);
     }
 
     if *prometheus_enabled {
