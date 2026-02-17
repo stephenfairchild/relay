@@ -68,14 +68,28 @@ fn load_config(path: &str) -> Result<Config, Box<dyn std::error::Error + Send + 
 }
 
 async fn call_upstream(
-    _: Request<hyper::body::Incoming>,
+    req: Request<hyper::body::Incoming>,
     upstream_url: Arc<String>,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
-    let url = upstream_url.parse::<hyper::Uri>()?;
+    let base_url = upstream_url.parse::<hyper::Uri>()?;
 
-    // Get the host and the port
-    let host = url.host().expect("uri has no host").to_string();
-    let port = url.port_u16().unwrap_or(80);
+    // Get the host and the port from the upstream URL
+    let host = base_url.host().expect("uri has no host").to_string();
+    let port = base_url.port_u16().unwrap_or(80);
+
+    // Get the path and query from the incoming request
+    let incoming_uri = req.uri();
+    let path_and_query = incoming_uri.path_and_query()
+        .map(|pq| pq.as_str())
+        .unwrap_or("/");
+
+    // Construct the full upstream URL with path and query
+    let upstream_uri = format!(
+        "{}://{}{}",
+        base_url.scheme_str().unwrap_or("http"),
+        base_url.authority().expect("uri has no authority"),
+        path_and_query
+    ).parse::<hyper::Uri>()?;
 
     let address = format!("{}:{}", host, port);
 
@@ -97,13 +111,13 @@ async fn call_upstream(
     });
 
     // Create the request to send to the upstream server
-    let req = Request::builder()
-        .uri(url)
+    let upstream_req = Request::builder()
+        .uri(upstream_uri)
         .header(hyper::header::HOST, host)
         .body(Empty::<Bytes>::new())?;
 
     // Send the request and await the response
-    let res = sender.send_request(req).await?;
+    let res = sender.send_request(upstream_req).await?;
 
     // Read the response body
     let body_bytes = res.collect().await?.to_bytes();
