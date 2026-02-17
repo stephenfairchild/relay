@@ -1,5 +1,7 @@
 use lazy_static::lazy_static;
-use prometheus::{Histogram, IntCounter, IntGauge, register_histogram, register_int_counter, register_int_gauge};
+use prometheus::{
+    Histogram, IntCounter, IntGauge, register_histogram, register_int_counter, register_int_gauge,
+};
 
 lazy_static! {
     pub static ref CACHE_HITS: IntCounter =

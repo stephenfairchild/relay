@@ -23,3 +23,6 @@
 - Development
   - [Contributing](contributing.md)
   - [Architecture](architecture.md)
+
+- Resources
+  - [Changelog](https://github.com/stephenfairchild/relay/blob/main/CHANGELOG.md)
