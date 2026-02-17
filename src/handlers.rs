@@ -69,28 +69,28 @@ pub async fn call_upstream(
     let rule = cache_config.find_rule(path);
 
     // If bypass is enabled for this path, skip caching entirely
-    if let Some(rule) = rule
-        && rule.bypass == Some(true)
-    {
-        println!("Cache BYPASS: {cache_key}");
-        return forward_to_upstream(req, upstream_url, incoming_uri, prometheus_enabled, start)
-            .await;
+    if let Some(rule) = rule {
+        if rule.bypass == Some(true) {
+            println!("Cache BYPASS: {cache_key}");
+            return forward_to_upstream(req, upstream_url, incoming_uri, prometheus_enabled, start)
+                .await;
+        }
     }
 
     // Determine TTL to use (rule-specific or default)
     let ttl = rule.and_then(|r| r.ttl).unwrap_or(cache_config.default_ttl);
 
-    if let Some(cached_response) = cache.get(&cache_key).await
-        && !cached_response.is_stale(ttl)
-    {
-        if *prometheus_enabled {
-            CACHE_HITS.inc();
-            REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+    if let Some(cached_response) = cache.get(&cache_key).await {
+        if !cached_response.is_stale(ttl) {
+            if *prometheus_enabled {
+                CACHE_HITS.inc();
+                REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+            }
+            println!("Cache HIT: {cache_key}");
+            return Ok(Response::builder()
+                .header("X-Cache", "HIT")
+                .body(Full::new(cached_response.body.clone()))?);
         }
-        println!("Cache HIT: {cache_key}");
-        return Ok(Response::builder()
-            .header("X-Cache", "HIT")
-            .body(Full::new(cached_response.body.clone()))?);
     }
 
     if *prometheus_enabled {
@@ -147,18 +147,18 @@ pub async fn call_upstream(
                 .and_then(|r| r.stale)
                 .unwrap_or(cache_config.stale_if_error);
 
-            if let Some(cached_response) = cache.get(&cache_key).await
-                && cached_response.is_servable_if_error(ttl, stale_if_error)
-            {
-                if *prometheus_enabled {
-                    CACHE_STALE_SERVED.inc();
-                    REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+            if let Some(cached_response) = cache.get(&cache_key).await {
+                if cached_response.is_servable_if_error(ttl, stale_if_error) {
+                    if *prometheus_enabled {
+                        CACHE_STALE_SERVED.inc();
+                        REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+                    }
+                    println!("Cache STALE (serving due to upstream error): {cache_key} - error: {e}");
+                    return Ok(Response::builder()
+                        .header("X-Cache", "STALE")
+                        .header("X-Cache-Reason", "upstream-error")
+                        .body(Full::new(cached_response.body.clone()))?);
                 }
-                println!("Cache STALE (serving due to upstream error): {cache_key} - error: {e}");
-                return Ok(Response::builder()
-                    .header("X-Cache", "STALE")
-                    .header("X-Cache-Reason", "upstream-error")
-                    .body(Full::new(cached_response.body.clone()))?);
             }
 
             if *prometheus_enabled {
