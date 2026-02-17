@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/stephenfairchild/relay/compare/v0.3.0...v0.3.1) (2026-02-17)
+
+
+### Bug Fixes
+
+* linker to compile properly ([#28](https://github.com/stephenfairchild/relay/issues/28)) ([3489362](https://github.com/stephenfairchild/relay/commit/348936299623f3375cae94cb26becbae3bbd7dff))
+
 ## [0.3.0](https://github.com/stephenfairchild/relay/compare/v0.2.0...v0.3.0) (2026-02-17)
 
 
