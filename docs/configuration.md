@@ -10,6 +10,16 @@ By default, Relay looks for `config.toml` in the current directory. You can spec
 relay --config /path/to/config.toml
 ```
 
+## Time Format
+
+Throughout the configuration, time values support these units:
+- `s` - seconds
+- `m` - minutes
+- `h` - hours
+- `d` - days
+
+**Examples:** `30s`, `5m`, `2h`, `7d`
+
 ## Upstream Configuration
 
 Define your origin server:
@@ -31,15 +41,15 @@ stale_while_revalidate = "1h"   # Serve stale while fetching fresh
 stale_if_error = "24h"          # Serve stale if backend is down
 ```
 
-### Time Format
+### Cache Options
 
-Time values support these units:
-- `s` - seconds
-- `m` - minutes
-- `h` - hours
-- `d` - days
+Relay provides three cache settings to control how responses are cached and served:
 
-Examples: `30s`, `5m`, `2h`, `7d`
+- **[default_ttl](cache-options/default-ttl.md)** - How long responses are considered fresh
+- **[stale_if_error](cache-options/stale-if-error.md)** - Serve stale content when upstream fails (resilience)
+- **[stale_while_revalidate](cache-options/stale-while-revalidate.md)** - Serve stale content while fetching fresh (performance)
+
+Click each option above for detailed documentation.
 
 ## Server Configuration
 

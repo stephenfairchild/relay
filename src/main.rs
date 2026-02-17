@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use http_body_util::BodyExt;
 use http_body_util::Empty;
@@ -22,7 +22,23 @@ use prometheus::{
     register_int_counter, register_int_gauge,
 };
 
-type Cache = Arc<RwLock<HashMap<String, Bytes>>>;
+#[derive(Clone, Debug)]
+struct CachedResponse {
+    body: Bytes,
+    cached_at: Instant,
+}
+
+impl CachedResponse {
+    fn is_stale(&self, ttl: Duration) -> bool {
+        self.cached_at.elapsed() > ttl
+    }
+
+    fn is_servable_if_error(&self, ttl: Duration, stale_if_error: Duration) -> bool {
+        self.cached_at.elapsed() < ttl + stale_if_error
+    }
+}
+
+type Cache = Arc<RwLock<HashMap<String, CachedResponse>>>;
 
 // Metrics using lock-free atomic operations for minimal overhead
 lazy_static! {
@@ -30,6 +46,11 @@ lazy_static! {
         register_int_counter!("relay_cache_hits_total", "Total number of cache hits").unwrap();
     static ref CACHE_MISSES: IntCounter =
         register_int_counter!("relay_cache_misses_total", "Total number of cache misses").unwrap();
+    static ref CACHE_STALE_SERVED: IntCounter = register_int_counter!(
+        "relay_cache_stale_served_total",
+        "Total number of stale cache responses served"
+    )
+    .unwrap();
     static ref REQUEST_DURATION: Histogram = register_histogram!(
         "relay_request_duration_seconds",
         "Request duration in seconds",
@@ -53,6 +74,8 @@ struct Config {
     upstream: UpstreamConfig,
     #[serde(default)]
     prometheus: PrometheusConfig,
+    #[serde(default)]
+    cache: CacheConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,16 +89,76 @@ struct UpstreamConfig {
     url: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct PrometheusConfig {
     #[serde(default)]
     enabled: bool,
 }
 
-impl Default for PrometheusConfig {
+#[derive(Debug, Deserialize)]
+struct CacheConfig {
+    #[serde(default = "default_ttl", deserialize_with = "deserialize_duration")]
+    default_ttl: Duration,
+    #[serde(
+        default = "default_stale_if_error",
+        deserialize_with = "deserialize_duration"
+    )]
+    stale_if_error: Duration,
+}
+
+impl Default for CacheConfig {
     fn default() -> Self {
-        Self { enabled: false }
+        Self {
+            default_ttl: default_ttl(),
+            stale_if_error: default_stale_if_error(),
+        }
     }
+}
+
+fn default_ttl() -> Duration {
+    Duration::from_secs(300) // 5 minutes
+}
+
+fn default_stale_if_error() -> Duration {
+    Duration::from_secs(86400) // 24 hours
+}
+
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    parse_duration(&s).map_err(serde::de::Error::custom)
+}
+
+fn parse_duration(s: &str) -> Result<Duration, String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err("Duration string is empty".to_string());
+    }
+
+    let (value_str, unit) = s.split_at(s.len() - 1);
+    let last_char = s.chars().last().unwrap();
+
+    let (num_str, unit_str) = if last_char.is_alphabetic() {
+        (value_str, unit)
+    } else {
+        (s, "s")
+    };
+
+    let value: u64 = num_str
+        .parse()
+        .map_err(|_| format!("Invalid number: {num_str}"))?;
+
+    let multiplier = match unit_str {
+        "s" => 1,
+        "m" => 60,
+        "h" => 3600,
+        "d" => 86400,
+        _ => return Err(format!("Invalid time unit: {unit_str}")),
+    };
+
+    Ok(Duration::from_secs(value * multiplier))
 }
 
 #[tokio::main]
@@ -86,9 +169,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let upstream_url = Arc::new(config.upstream.url.clone());
     let cache: Cache = Arc::new(RwLock::new(HashMap::new()));
     let prometheus_enabled = Arc::new(config.prometheus.enabled);
+    let cache_config = Arc::new(config.cache);
 
-    println!("Server listening on {}", addr);
-    println!("Upstream URL: {}", upstream_url);
+    println!("Server listening on {addr}");
+    println!("Upstream URL: {upstream_url}");
     println!(
         "Prometheus metrics: {}",
         if *prometheus_enabled {
@@ -97,6 +181,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             "disabled"
         }
     );
+    let ttl = cache_config.default_ttl;
+    let stale_if_error = cache_config.stale_if_error;
+    println!("Cache config: TTL={ttl:?}, stale-if-error={stale_if_error:?}");
 
     let listener = TcpListener::bind(addr).await?;
 
@@ -106,6 +193,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let upstream_url = Arc::clone(&upstream_url);
         let cache = Arc::clone(&cache);
         let prometheus_enabled = Arc::clone(&prometheus_enabled);
+        let cache_config = Arc::clone(&cache_config);
 
         tokio::task::spawn(async move {
             if let Err(err) = http1::Builder::new()
@@ -117,12 +205,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             Arc::clone(&upstream_url),
                             Arc::clone(&cache),
                             Arc::clone(&prometheus_enabled),
+                            Arc::clone(&cache_config),
                         )
                     }),
                 )
                 .await
             {
-                eprintln!("Error serving connection: {:?}", err);
+                eprintln!("Error serving connection: {err:?}");
             }
         });
     }
@@ -139,6 +228,7 @@ async fn handle_request(
     upstream_url: Arc<String>,
     cache: Cache,
     prometheus_enabled: Arc<bool>,
+    cache_config: Arc<CacheConfig>,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     // Fast path check for metrics endpoint
     if req.uri().path() == "/metrics" {
@@ -151,7 +241,7 @@ async fn handle_request(
         }
     }
 
-    call_upstream(req, upstream_url, cache, prometheus_enabled).await
+    call_upstream(req, upstream_url, cache, prometheus_enabled, cache_config).await
 }
 
 async fn metrics_handler() -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>>
@@ -178,6 +268,7 @@ async fn call_upstream(
     upstream_url: Arc<String>,
     cache: Cache,
     prometheus_enabled: Arc<bool>,
+    cache_config: Arc<CacheConfig>,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     let start = Instant::now();
     let incoming_uri = req.uri().clone();
@@ -186,22 +277,24 @@ async fn call_upstream(
     // Check if the response is in cache
     {
         let cache_read = cache.read().await;
-        if let Some(cached_bytes) = cache_read.get(&cache_key) {
-            if *prometheus_enabled {
-                CACHE_HITS.inc();
-                REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+        if let Some(cached_response) = cache_read.get(&cache_key) {
+            if !cached_response.is_stale(cache_config.default_ttl) {
+                if *prometheus_enabled {
+                    CACHE_HITS.inc();
+                    REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+                }
+                println!("Cache HIT: {cache_key}");
+                return Ok(Response::builder()
+                    .header("X-Cache", "HIT")
+                    .body(Full::new(cached_response.body.clone()))?);
             }
-            println!("Cache HIT: {}", cache_key);
-            return Ok(Response::builder()
-                .header("X-Cache", "HIT")
-                .body(Full::new(cached_bytes.clone()))?);
         }
     }
 
     if *prometheus_enabled {
         CACHE_MISSES.inc();
     }
-    println!("Cache MISS: {}", cache_key);
+    println!("Cache MISS: {cache_key}");
 
     let base_url = upstream_url.parse::<hyper::Uri>()?;
 
@@ -224,7 +317,7 @@ async fn call_upstream(
     )
     .parse::<hyper::Uri>()?;
 
-    let address = format!("{}:{}", host, port);
+    let address = format!("{host}:{port}");
 
     // Open a TCP connection to the remote host
     let stream = TcpStream::connect(address).await?;
@@ -239,7 +332,7 @@ async fn call_upstream(
     // Spawn a task to poll the connection, driving the HTTP state
     tokio::task::spawn(async move {
         if let Err(err) = conn.await {
-            println!("Connection failed: {:?}", err);
+            println!("Connection failed: {err:?}");
         }
     });
 
@@ -255,6 +348,29 @@ async fn call_upstream(
         Err(e) => {
             if *prometheus_enabled {
                 UPSTREAM_ERRORS.inc();
+            }
+
+            // Check if we have stale cache that can be served
+            let cache_read = cache.read().await;
+            if let Some(cached_response) = cache_read.get(&cache_key) {
+                if cached_response
+                    .is_servable_if_error(cache_config.default_ttl, cache_config.stale_if_error)
+                {
+                    if *prometheus_enabled {
+                        CACHE_STALE_SERVED.inc();
+                        REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+                    }
+                    println!(
+                        "Cache STALE (serving due to upstream error): {cache_key} - error: {e}"
+                    );
+                    return Ok(Response::builder()
+                        .header("X-Cache", "STALE")
+                        .header("X-Cache-Reason", "upstream-error")
+                        .body(Full::new(cached_response.body.clone()))?);
+                }
+            }
+
+            if *prometheus_enabled {
                 REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
             }
             return Err(Box::new(e));
@@ -267,7 +383,13 @@ async fn call_upstream(
     // Store the response in cache
     {
         let mut cache_write = cache.write().await;
-        cache_write.insert(cache_key, body_bytes.clone());
+        cache_write.insert(
+            cache_key,
+            CachedResponse {
+                body: body_bytes.clone(),
+                cached_at: Instant::now(),
+            },
+        );
         if *prometheus_enabled {
             CACHE_SIZE.set(cache_write.len() as i64);
         }
