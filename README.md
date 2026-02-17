@@ -1,6 +1,6 @@
 # relay
 
-A open-source fast and secure http cache. You know how Caddy changed the game for reverse proxies? It's just so easy compared to everything else. That's this but for http caching.
+Relay is an open-source HTTP cache that brings simplicity to HTTP caching. You know how Caddy made reverse proxies so easy out of the box over nginx? This is what Relay does for HTTP caching. It makes it out of the box easy.
 
 ## What is Relay?
 
@@ -51,7 +51,38 @@ Full documentation is available at [https://relay-http.com](https://relay-http.c
 - Drop in Varnish Replacement. 
 
 
-## Example Config
+## Quick Start
+
+Create a `config.toml`:
+
+```toml
+[upstream]
+url = "http://host.docker.internal:8000"
+
+[cache]
+default_ttl = "5m"
+stale_while_revalidate = "1h"
+stale_if_error = "24h"
+
+[storage]
+in_memory = true
+```
+
+Run with Docker:
+
+```bash
+docker run -p 8080:8080 \
+  -v $(pwd)/config.toml:/etc/relay/config.toml \
+  ghcr.io/stephenfairchild/relay:latest
+```
+
+Test it:
+
+```bash
+curl http://localhost:8080/api/data
+```
+
+## Advanced Configuration
 
 ```toml
 # relay.toml
@@ -68,6 +99,6 @@ stale_if_error = "24h"
 "/static/*" = { ttl = "1d" }
 
 [storage]
-in_memory=false
+in_memory = false
 redis = "http://redis:9000"
 ```
