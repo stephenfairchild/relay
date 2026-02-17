@@ -54,6 +54,8 @@ lazy_static! {
 struct Config {
     server: ServerConfig,
     upstream: UpstreamConfig,
+    #[serde(default)]
+    prometheus: PrometheusConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,6 +69,18 @@ struct UpstreamConfig {
     url: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct PrometheusConfig {
+    #[serde(default)]
+    enabled: bool,
+}
+
+impl Default for PrometheusConfig {
+    fn default() -> Self {
+        Self { enabled: false }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let config = load_config("config.toml")?;
@@ -74,9 +88,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     let upstream_url = Arc::new(config.upstream.url.clone());
     let cache: Cache = Arc::new(RwLock::new(HashMap::new()));
+    let prometheus_enabled = Arc::new(config.prometheus.enabled);
 
     println!("Server listening on {}", addr);
     println!("Upstream URL: {}", upstream_url);
+    println!("Prometheus metrics: {}", if *prometheus_enabled { "enabled" } else { "disabled" });
 
     let listener = TcpListener::bind(addr).await?;
 
@@ -85,13 +101,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let io = TokioIo::new(stream);
         let upstream_url = Arc::clone(&upstream_url);
         let cache = Arc::clone(&cache);
+        let prometheus_enabled = Arc::clone(&prometheus_enabled);
 
         tokio::task::spawn(async move {
             if let Err(err) = http1::Builder::new()
                 .serve_connection(
                     io,
                     service_fn(move |req| {
-                        handle_request(req, Arc::clone(&upstream_url), Arc::clone(&cache))
+                        handle_request(
+                            req,
+                            Arc::clone(&upstream_url),
+                            Arc::clone(&cache),
+                            Arc::clone(&prometheus_enabled),
+                        )
                     }),
                 )
                 .await
@@ -112,13 +134,20 @@ async fn handle_request(
     req: Request<hyper::body::Incoming>,
     upstream_url: Arc<String>,
     cache: Cache,
+    prometheus_enabled: Arc<bool>,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     // Fast path check for metrics endpoint
     if req.uri().path() == "/metrics" {
-        return metrics_handler().await;
+        if *prometheus_enabled {
+            return metrics_handler().await;
+        } else {
+            return Ok(Response::builder()
+                .status(404)
+                .body(Full::new(Bytes::from("Not Found")))?);
+        }
     }
 
-    call_upstream(req, upstream_url, cache).await
+    call_upstream(req, upstream_url, cache, prometheus_enabled).await
 }
 
 async fn metrics_handler() -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -143,6 +172,7 @@ async fn call_upstream(
     req: Request<hyper::body::Incoming>,
     upstream_url: Arc<String>,
     cache: Cache,
+    prometheus_enabled: Arc<bool>,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     let start = Instant::now();
     let incoming_uri = req.uri().clone();
@@ -152,8 +182,10 @@ async fn call_upstream(
     {
         let cache_read = cache.read().await;
         if let Some(cached_bytes) = cache_read.get(&cache_key) {
-            CACHE_HITS.inc();
-            REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+            if *prometheus_enabled {
+                CACHE_HITS.inc();
+                REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+            }
             println!("Cache HIT: {}", cache_key);
             return Ok(Response::builder()
                 .header("X-Cache", "HIT")
@@ -161,7 +193,9 @@ async fn call_upstream(
         }
     }
 
-    CACHE_MISSES.inc();
+    if *prometheus_enabled {
+        CACHE_MISSES.inc();
+    }
     println!("Cache MISS: {}", cache_key);
 
     let base_url = upstream_url.parse::<hyper::Uri>()?;
@@ -212,8 +246,10 @@ async fn call_upstream(
     let res = match sender.send_request(upstream_req).await {
         Ok(r) => r,
         Err(e) => {
-            UPSTREAM_ERRORS.inc();
-            REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+            if *prometheus_enabled {
+                UPSTREAM_ERRORS.inc();
+                REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+            }
             return Err(Box::new(e));
         }
     };
@@ -225,10 +261,14 @@ async fn call_upstream(
     {
         let mut cache_write = cache.write().await;
         cache_write.insert(cache_key, body_bytes.clone());
-        CACHE_SIZE.set(cache_write.len() as i64);
+        if *prometheus_enabled {
+            CACHE_SIZE.set(cache_write.len() as i64);
+        }
     }
 
-    REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+    if *prometheus_enabled {
+        REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+    }
 
     // Return the response with cache miss header
     Ok(Response::builder()
