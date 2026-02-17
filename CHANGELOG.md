@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2](https://github.com/stephenfairchild/relay/compare/v0.3.1...v0.3.2) (2026-02-17)
+
+
+### Bug Fixes
+
+* docker image builds ([#30](https://github.com/stephenfairchild/relay/issues/30)) ([5cead9c](https://github.com/stephenfairchild/relay/commit/5cead9c46f31b4873bac372ef93146c7fe51e227))
+* docker image builds ([#32](https://github.com/stephenfairchild/relay/issues/32)) ([848fa60](https://github.com/stephenfairchild/relay/commit/848fa607e6ca7b2c461f395c18c3166f8abbfa7e))
+
 ## [0.3.1](https://github.com/stephenfairchild/relay/compare/v0.3.0...v0.3.1) (2026-02-17)
 
 
