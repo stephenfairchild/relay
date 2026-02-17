@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6](https://github.com/stephenfairchild/relay/compare/v0.3.5...v0.3.6) (2026-02-17)
+
+
+### Bug Fixes
+
+* disable docker attestations causing pull hang ([51afa6b](https://github.com/stephenfairchild/relay/commit/51afa6b4645b015a62544e49744b3f5093a7a8ce))
+
 ## [0.3.5](https://github.com/stephenfairchild/relay/compare/v0.3.4...v0.3.5) (2026-02-17)
 
 
