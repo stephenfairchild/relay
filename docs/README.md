@@ -2,6 +2,20 @@
 
 Relay is an open-source HTTP cache that brings the simplicity and ease-of-use of Caddy to HTTP caching. It's designed to be a drop-in replacement for Varnish, but with a focus on simplicity and modern features.
 
+## What is Relay?
+
+Relay sits between your users and your backend servers, storing (caching) responses to speed up your application and reduce load on your servers.
+
+**The Problem:** Every time a user visits your website or app, your backend server has to do work - query databases, render pages, process data. When thousands of users make the same requests, your server does the same work over and over. This is slow and expensive.
+
+**The Solution:** Relay saves responses from your backend and serves them directly to users. Instead of your server handling 10,000 requests, it might only handle 1 - and Relay serves the other 9,999 instantly from its cache.
+
+**Real Benefits:**
+- **Faster response times** - Cached responses are served in microseconds instead of milliseconds
+- **Lower server costs** - Your backend handles a fraction of the traffic
+- **Better reliability** - If your backend goes down, Relay can still serve cached content
+- **Simple setup** - One binary, one config file, and you're running
+
 ## Features
 
 - **HTTP/1 Support** - Full HTTP/1.1 protocol support
