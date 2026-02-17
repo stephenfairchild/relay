@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/stephenfairchild/relay/compare/v0.3.3...v0.3.4) (2026-02-17)
+
+
+### Bug Fixes
+
+* multi-arch builds ([#37](https://github.com/stephenfairchild/relay/issues/37)) ([84e5f44](https://github.com/stephenfairchild/relay/commit/84e5f44d45576acde4facf251a15c1bd29c9af77))
+
 ## [0.3.3](https://github.com/stephenfairchild/relay/compare/v0.3.2...v0.3.3) (2026-02-17)
 
 
