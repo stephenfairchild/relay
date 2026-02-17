@@ -27,3 +27,6 @@ target
 
 # Configuration file (use config.toml.example as template)
 config.toml
+
+# SEO documentation and guides (internal reference only)
+SEO_*

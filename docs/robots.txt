@@ -1,0 +1,11 @@
+# Relay HTTP Cache - robots.txt
+# Allow all search engines to index all content
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://relay-http.com/sitemap.xml
+
+# Crawl delay to be respectful (optional)
+Crawl-delay: 1

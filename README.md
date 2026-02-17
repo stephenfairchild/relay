@@ -1,6 +1,14 @@
-# relay
+# Relay - Simple HTTP Cache Server
 
-Relay is an open-source HTTP cache that brings simplicity to HTTP caching. You know how Caddy made reverse proxies so easy out of the box over nginx? This is what Relay does for HTTP caching. It makes it out of the box easy.
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-stable-brightgreen.svg)](https://www.rust-lang.org/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://github.com/stephenfairchild/relay/pkgs/container/relay)
+
+> **A fast, modern HTTP caching proxy built in Rust. Like Caddy simplified reverse proxies, Relay simplifies HTTP caching.**
+
+Relay is an open-source HTTP cache server and caching proxy that brings simplicity to HTTP caching. Think of it as **Caddy for HTTP caching** - if Caddy made reverse proxies easy, Relay does the same for HTTP caching. One binary, one config file, production-ready out of the box.
+
+**Perfect for:** API caching, CDN edge caching, reducing backend load, improving response times, and building resilient web services.
 
 ## What is Relay?
 
