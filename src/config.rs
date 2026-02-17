@@ -1,7 +1,7 @@
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::Duration;
-use globset::{Glob, GlobSet, GlobSetBuilder};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {

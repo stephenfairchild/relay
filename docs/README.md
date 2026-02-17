@@ -66,6 +66,7 @@ curl http://localhost:8080/api/data
 - [Docker Setup](docker.md)
 - [Monitoring](monitoring.md)
 - [Contributing](contributing.md)
+- [Changelog](https://github.com/stephenfairchild/relay/blob/main/CHANGELOG.md)
 
 ## Other Installation Methods
 
