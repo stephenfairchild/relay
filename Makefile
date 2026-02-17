@@ -3,7 +3,7 @@ IMAGE_NAME := relay
 VERSION := latest
 DOCKER_USER := $(shell whoami)
 PORT := 4000
-DOCS_PORT := 3000
+DOCS_PORT := 4001
 DOCS_BUCKET := relay-http-website
 CLOUDFRONT_DISTRIBUTION_ID := E79IMJSHGAG34
 

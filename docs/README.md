@@ -20,11 +20,12 @@ Relay sits between your users and your backend servers, storing (caching) respon
 
 - **HTTP/1 Support** - Full HTTP/1.1 protocol support
 - **Stale-While-Revalidate** - Serve stale content while fetching fresh data
-- **Stale-If-Error** - Serve stale content on backend failures
+- **Stale-If-Error** - Keep your site up even when backends fail - automatically serve cached content during outages
 - **Conditional Requests** - Support for If-None-Match and If-Modified-Since
 - **Smart Cache Keys** - Ignore irrelevant query params and normalize cache keys
 - **Flexible Invalidation** - TTL-based, pattern-based purging, and cache warming
 - **Multiple Storage Backends** - In-memory, Redis, or disk storage
+- **Prometheus Metrics** - Built-in monitoring with detailed cache metrics
 - **Built with Rust** - Memory-safe and blazingly fast
 
 ## Quick Start
