@@ -26,7 +26,8 @@ target
 /target
 
 # Configuration file (use config.toml.example as template)
-config.toml
+# Only ignore the root config.toml, not example configs
+/config.toml
 
 # SEO documentation and guides (internal reference only)
 SEO_*
