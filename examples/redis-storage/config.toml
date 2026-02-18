@@ -1,0 +1,19 @@
+[server]
+host = "0.0.0.0"
+port = 3000
+
+[upstream]
+url = "http://httpbin.org"
+
+[prometheus]
+enabled = true
+
+[cache]
+default_ttl = "5m"
+stale_if_error = "24h"
+
+[storage]
+backend = "redis"
+
+[storage.redis]
+url = "redis://redis:6379"
