@@ -3,12 +3,14 @@ use hyper::body::Bytes;
 use hyper::{Request, Response};
 use hyper_util::rt::TokioIo;
 use prometheus::{Encoder, TextEncoder};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::net::TcpStream;
 
 use crate::cache::CachedResponse;
 use crate::config::CacheConfig;
+use crate::logger::{log_access, AccessLogEntry, CacheStatus};
 use crate::metrics::{
     CACHE_HITS, CACHE_MISSES, CACHE_SIZE, CACHE_STALE_SERVED, REQUEST_DURATION, UPSTREAM_ERRORS,
 };
@@ -19,7 +21,9 @@ pub async fn handle_request(
     upstream_url: Arc<String>,
     cache: Cache,
     prometheus_enabled: Arc<bool>,
+    logging_enabled: Arc<bool>,
     cache_config: Arc<CacheConfig>,
+    remote_addr: SocketAddr,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     if req.uri().path() == "/metrics" {
         if *prometheus_enabled {
@@ -31,7 +35,7 @@ pub async fn handle_request(
         }
     }
 
-    call_upstream(req, upstream_url, cache, prometheus_enabled, cache_config).await
+    call_upstream(req, upstream_url, cache, prometheus_enabled, logging_enabled, cache_config, remote_addr).await
 }
 
 pub async fn metrics_handler()
@@ -58,21 +62,24 @@ pub async fn call_upstream(
     upstream_url: Arc<String>,
     cache: Cache,
     prometheus_enabled: Arc<bool>,
+    logging_enabled: Arc<bool>,
     cache_config: Arc<CacheConfig>,
+    remote_addr: SocketAddr,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     let start = Instant::now();
     let incoming_uri = req.uri().clone();
+    let method = req.method().to_string();
     let cache_key = generate_cache_key(&incoming_uri);
-    let path = incoming_uri.path();
+    let path = incoming_uri.path().to_string();
 
     // Check if this path has a cache rule
-    let rule = cache_config.find_rule(path);
+    let rule = cache_config.find_rule(&path);
 
     // If bypass is enabled for this path, skip caching entirely
     if let Some(rule) = rule {
         if rule.bypass == Some(true) {
             println!("Cache BYPASS: {cache_key}");
-            return forward_to_upstream(req, upstream_url, incoming_uri, prometheus_enabled, start)
+            return forward_to_upstream(req, upstream_url, incoming_uri, prometheus_enabled, logging_enabled, start, method, path, remote_addr)
                 .await;
         }
     }
@@ -82,10 +89,26 @@ pub async fn call_upstream(
 
     if let Some(cached_response) = cache.get(&cache_key).await {
         if !cached_response.is_stale(ttl) {
+            let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+            let bytes_sent = cached_response.body.len();
+
             if *prometheus_enabled {
                 CACHE_HITS.inc();
                 REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
             }
+
+            if *logging_enabled {
+                log_access(AccessLogEntry {
+                    method: method.clone(),
+                    path: path.clone(),
+                    status: 200,
+                    duration_ms,
+                    cache_status: CacheStatus::Hit,
+                    remote_addr,
+                    bytes_sent,
+                });
+            }
+
             println!("Cache HIT: {cache_key}");
             return Ok(Response::builder()
                 .header("X-Cache", "HIT")
@@ -149,10 +172,26 @@ pub async fn call_upstream(
 
             if let Some(cached_response) = cache.get(&cache_key).await {
                 if cached_response.is_servable_if_error(ttl, stale_if_error) {
+                    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+                    let bytes_sent = cached_response.body.len();
+
                     if *prometheus_enabled {
                         CACHE_STALE_SERVED.inc();
                         REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
                     }
+
+                    if *logging_enabled {
+                        log_access(AccessLogEntry {
+                            method: method.clone(),
+                            path: path.clone(),
+                            status: 200,
+                            duration_ms,
+                            cache_status: CacheStatus::Stale,
+                            remote_addr,
+                            bytes_sent,
+                        });
+                    }
+
                     println!("Cache STALE (serving due to upstream error): {cache_key} - error: {e}");
                     return Ok(Response::builder()
                         .header("X-Cache", "STALE")
@@ -180,12 +219,24 @@ pub async fn call_upstream(
         )
         .await;
 
-    if *prometheus_enabled {
-        CACHE_SIZE.set(cache.size().await as i64);
-    }
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let bytes_sent = body_bytes.len();
 
     if *prometheus_enabled {
+        CACHE_SIZE.set(cache.size().await as i64);
         REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+    }
+
+    if *logging_enabled {
+        log_access(AccessLogEntry {
+            method,
+            path,
+            status: 200,
+            duration_ms,
+            cache_status: CacheStatus::Miss,
+            remote_addr,
+            bytes_sent,
+        });
     }
 
     Ok(Response::builder()
@@ -198,7 +249,11 @@ async fn forward_to_upstream(
     upstream_url: Arc<String>,
     incoming_uri: hyper::Uri,
     prometheus_enabled: Arc<bool>,
+    logging_enabled: Arc<bool>,
     start: Instant,
+    method: String,
+    path: String,
+    remote_addr: SocketAddr,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     let base_url = upstream_url.parse::<hyper::Uri>()?;
 
@@ -238,8 +293,23 @@ async fn forward_to_upstream(
     let res = sender.send_request(upstream_req).await?;
     let body_bytes = res.collect().await?.to_bytes();
 
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let bytes_sent = body_bytes.len();
+
     if *prometheus_enabled {
         REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+    }
+
+    if *logging_enabled {
+        log_access(AccessLogEntry {
+            method,
+            path,
+            status: 200,
+            duration_ms,
+            cache_status: CacheStatus::Bypass,
+            remote_addr,
+            bytes_sent,
+        });
     }
 
     Ok(Response::builder()

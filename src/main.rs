@@ -1,6 +1,7 @@
 mod cache;
 mod config;
 mod handlers;
+mod logger;
 mod metrics;
 mod storage;
 
@@ -19,6 +20,8 @@ use storage::{Cache, MemoryStorage, RedisStorage};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let config = load_config("config.toml")?;
+
+    logger::init_logging(&config.logging)?;
 
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     let upstream_url = Arc::new(config.upstream.url.clone());
@@ -43,6 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     let prometheus_enabled = Arc::new(config.prometheus.enabled);
+    let logging_enabled = Arc::new(config.logging.enabled);
     let cache_config = Arc::new(config.cache);
 
     println!("Server listening on {addr}");
@@ -73,11 +77,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(addr).await?;
 
     loop {
-        let (stream, _) = listener.accept().await?;
+        let (stream, remote_addr) = listener.accept().await?;
         let io = TokioIo::new(stream);
         let upstream_url = Arc::clone(&upstream_url);
         let cache = Arc::clone(&cache);
         let prometheus_enabled = Arc::clone(&prometheus_enabled);
+        let logging_enabled = Arc::clone(&logging_enabled);
         let cache_config = Arc::clone(&cache_config);
 
         tokio::task::spawn(async move {
@@ -90,7 +95,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             Arc::clone(&upstream_url),
                             Arc::clone(&cache),
                             Arc::clone(&prometheus_enabled),
+                            Arc::clone(&logging_enabled),
                             Arc::clone(&cache_config),
+                            remote_addr,
                         )
                     }),
                 )
