@@ -16,6 +16,15 @@ use crate::metrics::{
 };
 use crate::storage::Cache;
 
+struct RequestContext {
+    prometheus_enabled: Arc<bool>,
+    logging_enabled: Arc<bool>,
+    start: Instant,
+    method: String,
+    path: String,
+    remote_addr: SocketAddr,
+}
+
 pub async fn handle_request(
     req: Request<hyper::body::Incoming>,
     upstream_url: Arc<String>,
@@ -79,8 +88,15 @@ pub async fn call_upstream(
     if let Some(rule) = rule {
         if rule.bypass == Some(true) {
             println!("Cache BYPASS: {cache_key}");
-            return forward_to_upstream(req, upstream_url, incoming_uri, prometheus_enabled, logging_enabled, start, method, path, remote_addr)
-                .await;
+            let context = RequestContext {
+                prometheus_enabled,
+                logging_enabled,
+                start,
+                method,
+                path,
+                remote_addr,
+            };
+            return forward_to_upstream(req, upstream_url, incoming_uri, context).await;
         }
     }
 
@@ -248,12 +264,7 @@ async fn forward_to_upstream(
     _req: Request<hyper::body::Incoming>,
     upstream_url: Arc<String>,
     incoming_uri: hyper::Uri,
-    prometheus_enabled: Arc<bool>,
-    logging_enabled: Arc<bool>,
-    start: Instant,
-    method: String,
-    path: String,
-    remote_addr: SocketAddr,
+    context: RequestContext,
 ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
     let base_url = upstream_url.parse::<hyper::Uri>()?;
 
@@ -293,21 +304,21 @@ async fn forward_to_upstream(
     let res = sender.send_request(upstream_req).await?;
     let body_bytes = res.collect().await?.to_bytes();
 
-    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let duration_ms = context.start.elapsed().as_secs_f64() * 1000.0;
     let bytes_sent = body_bytes.len();
 
-    if *prometheus_enabled {
-        REQUEST_DURATION.observe(start.elapsed().as_secs_f64());
+    if *context.prometheus_enabled {
+        REQUEST_DURATION.observe(context.start.elapsed().as_secs_f64());
     }
 
-    if *logging_enabled {
+    if *context.logging_enabled {
         log_access(AccessLogEntry {
-            method,
-            path,
+            method: context.method,
+            path: context.path,
             status: 200,
             duration_ms,
             cache_status: CacheStatus::Bypass,
-            remote_addr,
+            remote_addr: context.remote_addr,
             bytes_sent,
         });
     }
