@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/stephenfairchild/relay/compare/v0.3.6...v0.4.0) (2026-02-19)
+
+
+### Features
+
+* add a custom logging implementation ([#43](https://github.com/stephenfairchild/relay/issues/43)) ([a5c2413](https://github.com/stephenfairchild/relay/commit/a5c2413ede0b2cfa12ca07a5a79a80c67c6bb533))
+
 ## [0.3.6](https://github.com/stephenfairchild/relay/compare/v0.3.5...v0.3.6) (2026-02-17)
 
 
