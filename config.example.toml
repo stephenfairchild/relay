@@ -11,6 +11,12 @@ url = "http://localhost:3000"
 [prometheus]
 enabled = true
 
+[logging]
+# Enable structured access logging
+enabled = true
+# Log format: "json" (default) or "combined" (human-readable)
+format = "json"
+
 [cache]
 # Default TTL for cached responses
 default_ttl = "5m"

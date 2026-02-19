@@ -10,6 +10,8 @@ pub struct Config {
     #[serde(default)]
     pub prometheus: PrometheusConfig,
     #[serde(default)]
+    pub logging: LoggingConfig,
+    #[serde(default)]
     pub cache: CacheConfig,
     #[serde(default)]
     pub storage: StorageConfig,
@@ -30,6 +32,31 @@ pub struct UpstreamConfig {
 pub struct PrometheusConfig {
     #[serde(default)]
     pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoggingConfig {
+    #[serde(default = "default_logging_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_log_format")]
+    pub format: String,
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_logging_enabled(),
+            format: default_log_format(),
+        }
+    }
+}
+
+fn default_logging_enabled() -> bool {
+    true
+}
+
+fn default_log_format() -> String {
+    "json".to_string()
 }
 
 #[derive(Debug, Deserialize, Clone)]

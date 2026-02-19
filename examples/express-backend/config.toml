@@ -8,6 +8,10 @@ url = "http://backend:3000"
 [prometheus]
 enabled = true
 
+[logging]
+enabled = true
+format = "json"
+
 [cache]
 default_ttl = "5m"
 stale_while_revalidate = "1h"
